@@ -8,6 +8,12 @@ Chatbot de atendimento N1 para estudantes do ETE-FMC (Escola Técnica de Eletrô
 
 Este projeto foi desenvolvido durante o **AWS Vibe Coding Dojo** no **HackTown 2025**, demonstrando o poder da IA generativa com Amazon Bedrock para criar soluções educacionais inovadoras.
 
+### 👥 Nosso Time
+
+![Time AWS Vibe Coding Dojo](images/team-dojo.jpeg)
+
+*Equipe que desenvolveu o projeto durante o AWS Vibe Coding Dojo no HackTown 2025*
+
 ## 🚀 Funcionalidades
 
 - **Interface web gamer** com tema futurístico e neon
