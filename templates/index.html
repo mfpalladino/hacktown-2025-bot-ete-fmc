@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ETE-FMC Gaming Bot | Atendimento Inteligente</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎮</text></svg>">
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>🎮 ETE-FMC GAMING BOT</h1>
+            <p>⚡ Sistema de Atendimento Inteligente | Santa Rita do Sapucaí ⚡</p>
+        </div>
+        
+        <div class="chat-messages" id="messages">
+            <div class="message bot">
+                <div class="message-content">
+                    <strong>🚀 Sistema Online!</strong><br><br>
+                    Olá, gamer! Sou o assistente virtual do <strong>ETE-FMC</strong>. 
+                    Estou aqui para te ajudar com informações sobre:
+                    <br><br>
+                    🎯 <strong>Cursos técnicos</strong> (Informática, Eletrônica, Telecomunicações, Automação)<br>
+                    ⏰ <strong>Horários</strong> de funcionamento<br>
+                    📞 <strong>Contatos</strong> e localização<br>
+                    📚 <strong>Procedimentos</strong> acadêmicos<br><br>
+                    <em>Digite sua pergunta e vamos começar!</em>
+                    <div class="message-time" id="welcome-time"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="typing-indicator" id="typing">
+            Processando sua solicitação...
+        </div>
+        
+        <div class="chat-input">
+            <input 
+                type="text" 
+                id="messageInput" 
+                placeholder="Digite sua pergunta aqui... (Ex: Quais cursos vocês oferecem?)" 
+                maxlength="500"
+                autocomplete="off"
+            >
+            <button id="sendButton" onclick="sendMessage()">
+                <span>Enviar</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        const messagesDiv = document.getElementById('messages');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const typingIndicator = document.getElementById('typing');
+        
+        // ID único do usuário
+        const userId = 'gamer_' + Math.random().toString(36).substr(2, 9);
+        
+        // Configurar timestamp da mensagem de boas-vindas
+        document.getElementById('welcome-time').textContent = 
+            'Sistema iniciado às ' + new Date().toLocaleTimeString('pt-BR');
+
+        // Eventos do Socket.IO
+        socket.on('connect', function() {
+            console.log('🎮 Conectado ao ETE-FMC Gaming Bot');
+            showSystemMessage('🟢 Conectado ao servidor', 'success');
+        });
+
+        socket.on('disconnect', function() {
+            console.log('❌ Desconectado do servidor');
+            showSystemMessage('🔴 Conexão perdida - Tentando reconectar...', 'error');
+        });
+
+        socket.on('status', function(data) {
+            console.log('Status:', data.msg);
+        });
+
+        socket.on('bot_response', function(data) {
+            hideTyping();
+            addMessage('bot', data.message);
+            enableInput();
+            playNotificationSound();
+        });
+
+        // Funções do chat
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            addMessage('user', message);
+            showTyping();
+            disableInput();
+
+            socket.emit('user_message', {
+                message: message,
+                user_id: userId
+            });
+
+            messageInput.value = '';
+        }
+
+        function addMessage(sender, content) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('pt-BR', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            
+            // Processa o conteúdo para destacar palavras-chave
+            const processedContent = highlightKeywords(content);
+            
+            messageDiv.innerHTML = `
+                <div class="message-content">
+                    ${processedContent}
+                    <div class="message-time">${timeString}</div>
+                </div>
+            `;
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            
+            // Adiciona efeito sonoro para mensagens do bot
+            if (sender === 'bot') {
+                setTimeout(() => playNotificationSound(), 100);
+            }
+        }
+
+        function highlightKeywords(text) {
+            const keywords = {
+                'ETE-FMC': '<strong style="color: var(--primary-color);">ETE-FMC</strong>',
+                'Informática': '<strong style="color: var(--secondary-color);">Informática</strong>',
+                'Eletrônica': '<strong style="color: var(--secondary-color);">Eletrônica</strong>',
+                'Telecomunicações': '<strong style="color: var(--secondary-color);">Telecomunicações</strong>',
+                'Automação': '<strong style="color: var(--secondary-color);">Automação</strong>',
+                'secretaria': '<strong style="color: var(--accent-color);">secretaria</strong>',
+                'biblioteca': '<strong style="color: var(--accent-color);">biblioteca</strong>',
+                'laboratório': '<strong style="color: var(--accent-color);">laboratório</strong>',
+                'laboratórios': '<strong style="color: var(--accent-color);">laboratórios</strong>'
+            };
+            
+            let processedText = text;
+            for (const [keyword, replacement] of Object.entries(keywords)) {
+                const regex = new RegExp(`\\b${keyword}\\b`, 'gi');
+                processedText = processedText.replace(regex, replacement);
+            }
+            
+            return processedText;
+        }
+
+        function showSystemMessage(message, type = 'info') {
+            const statusDiv = document.createElement('div');
+            statusDiv.className = `status-message ${type}`;
+            statusDiv.textContent = message;
+            
+            messagesDiv.appendChild(statusDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            
+            // Remove a mensagem após 3 segundos
+            setTimeout(() => {
+                if (statusDiv.parentNode) {
+                    statusDiv.remove();
+                }
+            }, 3000);
+        }
+
+        function showTyping() {
+            typingIndicator.style.display = 'block';
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function hideTyping() {
+            typingIndicator.style.display = 'none';
+        }
+
+        function disableInput() {
+            messageInput.disabled = true;
+            sendButton.disabled = true;
+            sendButton.innerHTML = '<span>⏳ Processando...</span>';
+        }
+
+        function enableInput() {
+            messageInput.disabled = false;
+            sendButton.disabled = false;
+            sendButton.innerHTML = '<span>Enviar</span>';
+            messageInput.focus();
+        }
+
+        function playNotificationSound() {
+            // Cria um som de notificação usando Web Audio API
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                oscillator.frequency.setValueAtTime(600, audioContext.currentTime + 0.1);
+                
+                gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.2);
+            } catch (e) {
+                // Fallback silencioso se Web Audio não estiver disponível
+                console.log('Audio notification not available');
+            }
+        }
+
+        // Event listeners
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Efeitos visuais adicionais
+        messageInput.addEventListener('input', function() {
+            if (this.value.length > 0) {
+                this.style.borderColor = 'var(--primary-color)';
+            } else {
+                this.style.borderColor = 'var(--border-color)';
+            }
+        });
+
+        // Auto-focus no input quando a página carrega
+        window.addEventListener('load', function() {
+            messageInput.focus();
+            showSystemMessage('🎮 ETE-FMC Gaming Bot carregado com sucesso!', 'success');
+        });
+
+        // Previne zoom no iOS quando focando no input
+        if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+            messageInput.addEventListener('focus', function() {
+                this.style.fontSize = '16px';
+            });
+        }
+
+        // Easter egg - Konami Code
+        let konamiCode = [];
+        const konamiSequence = [38, 38, 40, 40, 37, 39, 37, 39, 66, 65]; // ↑↑↓↓←→←→BA
+        
+        document.addEventListener('keydown', function(e) {
+            konamiCode.push(e.keyCode);
+            if (konamiCode.length > konamiSequence.length) {
+                konamiCode.shift();
+            }
+            
+            if (konamiCode.join(',') === konamiSequence.join(',')) {
+                showSystemMessage('🎉 KONAMI CODE ATIVADO! Modo Gamer Supremo ON! 🎉', 'success');
+                document.body.style.filter = 'hue-rotate(180deg)';
+                setTimeout(() => {
+                    document.body.style.filter = 'none';
+                }, 3000);
+                konamiCode = [];
+            }
+        });
+    </script>
+</body>
+</html>
